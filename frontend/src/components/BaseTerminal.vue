@@ -176,6 +176,7 @@ import {
 import { getXtermTheme } from '../composables/useTerminal'
 import { resolveXtermBackground, applyTerminalBgVar, resolveTerminalThemeName } from '../composables/useTerminalTheme'
 import { stripCursorBlink } from '../utils/cursor'
+import { prepareTerminalWrite } from '../utils/terminalScreenRestore'
 import { applyBackspaceKey } from '../utils/backspaceKey'
 import { formatFontFamily } from '../utils/formatFontFamily'
 import { normalizePastedText, pasteWithScroll } from '../utils/terminalPaste'
@@ -382,12 +383,11 @@ const dcsReassembler = new DcsReassembler()
 
 function renderTerminalData(rawData: string, countChunk = true) {
   if (!terminal) return
-  let data = stripCursorBlink(rawData, settingsStore.settings.terminal.cursorBlink ?? true).replace(/\x1b\[3J/g, '')
-  if (data.includes('\x1b[2J') && terminal.buffer.active.type !== 'alternate') {
-    const scrollClear = '\n'.repeat(terminal.rows) + '\x1b[H'
-    data = data.replace(/\x1b\[H\x1b\[2J/g, scrollClear)
-    data = data.replace(/\x1b\[2J/g, scrollClear)
-  }
+  let data = stripCursorBlink(rawData, settingsStore.settings.terminal.cursorBlink ?? true)
+  data = prepareTerminalWrite(data, {
+    rows: terminal.rows,
+    alternate: terminal.buffer.active.type === 'alternate',
+  })
   data = sanitizeLiveTerminalOutput(data)
   if (props.mode === 'sftp') {
     const cleaned = data.replace(/\x1b\]633;S[^\x07]*\x07/g, '')
